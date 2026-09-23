@@ -1097,6 +1097,9 @@
           applyVolume();
           if (soundConfig.audioEnabled) {
             sounds.bgm.play().catch(() => {});
+          } else {
+            // 保存はされているが「いいえ」にしていた場合は再度確認モーダルを出す仕様
+            document.getElementById('audio-prompt-modal').style.display = 'flex';
           }
           return;
         } catch(e) {}
@@ -1638,6 +1641,34 @@
             queueFloatNotice('⚠️ 画面から離れたため配送が中断されました', 'delivery-interrupted');
             renderSupplyList();
           }
+        } else {
+          // 画面に戻ってきた（開いた）タイミングの処理
+          const saved = localStorage.getItem('merge_cafe_audio_config');
+          if (saved) {
+            try {
+              const cfg = JSON.parse(saved);
+              if (cfg.audioEnabled) {
+                // すでに音声オンにしている場合は再開
+                soundConfig.audioEnabled = true;
+                applyVolume();
+                sounds.bgm.play().catch(() => {});
+              } else {
+                // 音声オフや未選択の場合は毎回確認モーダルを表示
+                document.getElementById('audio-prompt-modal').style.display = 'flex';
+              }
+            } catch(e) {
+              document.getElementById('audio-prompt-modal').style.display = 'flex';
+            }
+          } else {
+            document.getElementById('audio-prompt-modal').style.display = 'flex';
+          }
+        }
+      });
+
+      // ページ全体の復帰時（ブラウザのタブ切り替えやBFキャッシュからの復帰など）に対応
+      window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+          loadAudioConfig();
         }
       });
     }
