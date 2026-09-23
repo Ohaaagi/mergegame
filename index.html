@@ -864,6 +864,11 @@
       min-width: 30px;
       flex-shrink: 0;
     }
+    .recipe-icon-box.highlighted {
+      border: 2px solid #e91e63 !important;
+      box-shadow: 0 0 6px rgba(233, 30, 99, 0.6);
+      background: #fce4ec;
+    }
     .recipe-icon-box.locked-item {
       background: #f5f5f5;
       border-color: #e0e0e0;
@@ -1098,13 +1103,11 @@
           if (soundConfig.audioEnabled) {
             sounds.bgm.play().catch(() => {});
           } else {
-            // 保存はされているが「いいえ」にしていた場合は再度確認モーダルを出す仕様
             document.getElementById('audio-prompt-modal').style.display = 'flex';
           }
           return;
         } catch(e) {}
       }
-      // 設定がまだ保存されていない場合はモーダルを表示して音声を流さない
       document.getElementById('audio-prompt-modal').style.display = 'flex';
     }
 
@@ -1642,18 +1645,15 @@
             renderSupplyList();
           }
         } else {
-          // 画面に戻ってきた（開いた）タイミングの処理
           const saved = localStorage.getItem('merge_cafe_audio_config');
           if (saved) {
             try {
               const cfg = JSON.parse(saved);
               if (cfg.audioEnabled) {
-                // すでに音声オンにしている場合は再開
                 soundConfig.audioEnabled = true;
                 applyVolume();
                 sounds.bgm.play().catch(() => {});
               } else {
-                // 音声オフや未選択の場合は毎回確認モーダルを表示
                 document.getElementById('audio-prompt-modal').style.display = 'flex';
               }
             } catch(e) {
@@ -1665,7 +1665,6 @@
         }
       });
 
-      // ページ全体の復帰時（ブラウザのタブ切り替えやBFキャッシュからの復帰など）に対応
       window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
           loadAudioConfig();
@@ -1955,7 +1954,7 @@
           const icon = CHAINS[ord.chain].branches[ord.branch].items[ord.level];
           
           return `
-            <div class="order-item-slot ${isFulfilled ? 'fulfilled' : ''}" data-chain="${ord.chain}">
+            <div class="order-item-slot ${isFulfilled ? 'fulfilled' : ''}" data-chain="${ord.chain}" data-branch="${ord.branch}" data-level="${ord.level}">
               ${icon}
             </div>
           `;
@@ -1975,6 +1974,15 @@
         card.onclick = () => {
           if (isReady) serveCustomer(cust.id);
         };
+
+        // スロットごとの長押しイベント設定
+        const slotEls = card.querySelectorAll('.order-item-slot');
+        slotEls.forEach((slotEl, idx) => {
+          const ord = cust.orders[idx];
+          setupLongPress(slotEl, () => {
+            showRecipeModal(ord.chain, ord.branch, ord.level);
+          });
+        });
 
         list.appendChild(card);
       });
@@ -2015,35 +2023,45 @@
 
       const availableChains = Object.keys(CHAINS).filter(k => CHAINS[k].levelReq <= state.level);
       
-      let numOrders = 1;
-      const isAccessoryUnlocked = state.level >= CHAINS.accessory.levelReq;
-
-      if (isAccessoryUnlocked) {
-        const rand = Math.random();
-        if (rand < 0.15) numOrders = 3;
-        else if (rand < 0.50) numOrders = 2;
-        else numOrders = 1;
-      } else {
-        numOrders = Math.random() < 0.3 ? 2 : 1;
-      }
-
       const orders = [];
-      const guaranteedHighLevelSlot = Math.floor(Math.random() * numOrders);
 
-      for (let i = 0; i < numOrders; i++) {
-        const chain = availableChains[Math.floor(Math.random() * availableChains.length)];
-        const branch = Math.random() < 0.5 ? 'A' : 'B';
-        const maxLvl = Math.min(state.level, 5);
-        
-        let level = 0;
-        if (i === guaranteedHighLevelSlot || (numOrders === 1 && Math.random() < 0.7)) {
-          level = Math.floor(Math.random() * Math.max(1, maxLvl)) + 1; 
-          level = Math.min(level, 5);
-        } else {
-          level = Math.floor(Math.random() * Math.max(1, maxLvl));
+      // 1つ目のアイテムの決定（レベル3:40%, レベル4:40%, レベル5:18%, レベル6:2%）
+      const pickFirstLevel = () => {
+        const r = Math.random() * 100;
+        if (r < 40) return 2; // Lv3 (index 2)
+        if (r < 80) return 3; // Lv4 (index 3)
+        if (r < 98) return 4; // Lv5 (index 4)
+        return 5;             // Lv6 (index 5)
+      };
+
+      // 2つ目・3つ目の追加アイテムの確率決定（レベル2:50%, レベル3:40%, レベル4:10%）
+      const pickSubLevel = () => {
+        const r = Math.random() * 100;
+        if (r < 50) return 1; // Lv2 (index 1)
+        if (r < 90) return 2; // Lv3 (index 2)
+        return 3;             // Lv4 (index 3)
+      };
+
+      // 1つ目の作成
+      const chain1 = availableChains[Math.floor(Math.random() * availableChains.length)];
+      const branch1 = Math.random() < 0.5 ? 'A' : 'B';
+      const level1 = pickFirstLevel();
+      orders.push({ chain: chain1, branch: branch1, level: level1, fulfilled: false });
+
+      // レベル5以上（index 4以上）の場合、10%の確率で2つ目のアイテムを求める
+      if (level1 >= 4 && Math.random() < 0.10) {
+        const chain2 = availableChains[Math.floor(Math.random() * availableChains.length)];
+        const branch2 = Math.random() < 0.5 ? 'A' : 'B';
+        const level2 = pickSubLevel();
+        orders.push({ chain: chain2, branch: branch2, level: level2, fulfilled: false });
+
+        // レベル50以上の場合、3%の確率で3つ目のアイテムを求めることがある
+        if (state.level >= 50 && Math.random() < 0.03) {
+          const chain3 = availableChains[Math.floor(Math.random() * availableChains.length)];
+          const branch3 = Math.random() < 0.5 ? 'A' : 'B';
+          const level3 = pickSubLevel();
+          orders.push({ chain: chain3, branch: branch3, level: level3, fulfilled: false });
         }
-
-        orders.push({ chain, branch, level, fulfilled: false });
       }
 
       state.customers.push({ id, avatar, name, orders });
@@ -2056,8 +2074,8 @@
 
       playSound('serve');
 
-      let rewardCoins = 0;
-      let rewardXp = 0;
+      let baseCoins = 0;
+      let base0Xp = 0;
       const indicesToConsume = [];
       const usedIndices = new Set();
 
@@ -2072,10 +2090,18 @@
         if (boardIdx !== -1) {
           usedIndices.add(boardIdx);
           indicesToConsume.push(boardIdx);
-          rewardCoins += (ord.level + 1) * 20;
-          rewardXp += (ord.level + 1) * 15;
+          baseCoins += (ord.level + 1) * 20;
+          base0Xp += (ord.level + 1) * 15;
         }
       });
+
+      // 複数求められたときの報酬倍率（2こなら3倍、3個なら5倍、1個なら1倍）
+      let multiplier = 1;
+      if (cust.orders.length === 2) multiplier = 3;
+      else if (cust.orders.length >= 3) multiplier = 5;
+
+      const rewardCoins = baseCoins * multiplier;
+      const rewardXp = base0Xp * multiplier;
 
       const boardEls = document.querySelectorAll('.item-node');
       indicesToConsume.forEach(bIdx => {
@@ -2188,7 +2214,8 @@
         longPressTimer = setTimeout(() => {
           isLongPressed = true;
           if (!isDragging && state.board[startIdx]) {
-            showRecipeModal(state.board[startIdx].chain);
+            const item = state.board[startIdx];
+            showRecipeModal(item.chain, item.branch, item.level);
           }
         }, 500);
       });
@@ -2399,7 +2426,6 @@
         item.innerHTML = `<span>${displayIcon}</span>`;
 
         const starsStr = '★'.repeat(title.stars) + '☆'.repeat(5 - title.stars);
-        // 未獲得時は条件を「？？？？？」にし、レア度は表示する仕様
         const descText = isUnlocked ?
           `【${title.name}】 レア度: ${starsStr} / 条件: ${title.desc}` :
           `【未獲得】 レア度: ${starsStr} / 条件: ？？？？？`;
@@ -2417,7 +2443,7 @@
       document.getElementById('title-modal').style.display = 'flex';
     }
 
-    function showRecipeModal(chainKey) {
+    function showRecipeModal(chainKey, highlightBranch = null, highlightLevel = null) {
       const chain = CHAINS[chainKey];
       if (!chain) return;
 
@@ -2432,9 +2458,10 @@
         branch.items.forEach((item, idx) => {
           const isDiscovered = !!state.discoveredItems[`${chainKey}_${bKey}_${idx}`];
           const displayIcon = isDiscovered ? item : '❓';
+          const isHighlighted = (highlightBranch === bKey && highlightLevel === idx);
           
           html += `
-            <div class="recipe-icon-box ${!isDiscovered ? 'locked-item' : ''}">
+            <div class="recipe-icon-box ${!isDiscovered ? 'locked-item' : ''} ${isHighlighted ? 'highlighted' : ''}">
               <span>${displayIcon}</span>
               <span class="recipe-level-lbl">Lv.${idx+1}</span>
             </div>
