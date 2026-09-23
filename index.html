@@ -1829,19 +1829,19 @@
 
       playSound('drive');
 
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         const randomChain = unlockedChains[Math.floor(Math.random() * unlockedChains.length)];
         addBoxToInventory(randomChain, 1);
       }
 
-      state.expressCooldown = 60;
+      state.expressCooldown = 30;
       state.stats.expressCount = (state.stats.expressCount || 0) + 1;
       checkTitlesUnlock();
 
       saveState();
       renderSupplyList();
       renderInventory();
-      queueFloatNotice('⚡ 高速配送！箱を2個即時入手！', 'delivery-success');
+      queueFloatNotice('⚡ 高速配送！箱を3個即時入手！', 'delivery-success');
     }
 
     function spawnBoxFromInventory(chainKey) {
