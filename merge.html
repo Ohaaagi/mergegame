@@ -1,0 +1,2503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>マージカフェ - Multi-Branch Supply & Drop Float</title>
+  <style>
+    :root {
+      --bg-color: #fce4ec;
+      --card-bg: #ffffff;
+      --board-bg: #8d6e63;
+      --board-border: #5d4037;
+      --cell-bg: #efebe9;
+      --text-main: #3e2723;
+      --text-sub: #8d6e63;
+      --shadow-sm: 0 2px 6px rgba(0,0,0,0.1);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+
+      --color-drink: #00bcd4;
+      --color-food: #ff9800;
+      --color-dish: #4caf50;
+      --color-accessory: #9c27b0;
+      --color-furniture: #795548;
+      --color-goods: #fbc02d;
+      --color-animal: #e91e63;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 6px;
+      background: linear-gradient(180deg, #fff3e0 0%, #fce4ec 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      touch-action: manipulation;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ヘッダー改修 */
+    header {
+      width: 380px;
+      max-width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      position: relative;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 900;
+      background: linear-gradient(45deg, #e65100, #ff9800);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-status {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .badge {
+      color: white;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 10px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      position: relative;
+    }
+
+    /* 称号バッジ */
+    .badge-title {
+      background: linear-gradient(135deg, #ffd700, #ffa000);
+      color: #3e2723;
+      cursor: pointer;
+      border: 1px solid #fff;
+      transition: transform 0.1s ease;
+    }
+    .badge-title:active {
+      transform: scale(0.95);
+    }
+
+    /* 設定ボタン */
+    .badge-setting {
+      background: linear-gradient(135deg, #78909c, #455a64);
+      color: white;
+      cursor: pointer;
+      border: 1px solid #fff;
+      transition: transform 0.1s ease;
+      padding: 3px 6px;
+    }
+    .badge-setting:active {
+      transform: scale(0.95);
+    }
+
+    /* レベル＆XPバーバッジ */
+    .badge-level-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      background: linear-gradient(135deg, #ab47bc, #7b1fa2);
+      padding: 3px 8px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      min-width: 110px;
+    }
+
+    .level-text-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: white;
+      font-weight: bold;
+      line-height: 1.1;
+    }
+
+    .xp-bar-container {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      margin-top: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .xp-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #76ff03;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* コインバッジ */
+    .badge-coin {
+      background: linear-gradient(135deg, #ffa726, #f57c00);
+      transition: transform 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .badge-coin.bump { transform: scale(1.15); }
+
+    /* ゴールド正確量吹き出し */
+    .coin-tooltip {
+      display: none;
+      position: absolute;
+      top: 28px;
+      right: 0;
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffd700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: bold;
+      white-space: nowrap;
+      z-index: 5000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: 1px solid #ffd700;
+      animation: fadeIn 0.15s ease;
+    }
+    .coin-tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      right: 12px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ショップエリア */
+    #supply-section {
+      width: 380px;
+      max-width: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(4px);
+      border-radius: 10px;
+      padding: 4px 6px;
+      margin-bottom: 4px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid #ffe0b2;
+    }
+
+    .supply-title {
+      font-size: 10px;
+      font-weight: bold;
+      color: #e65100;
+      margin-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .supply-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+      width: 100%;
+    }
+
+    .supply-btn {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #ffffff;
+      border: 1.5px solid #ffb74d;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.1s, filter 0.2s;
+      position: relative;
+    }
+    .supply-btn:active { transform: scale(0.92) !important; }
+
+    .supply-btn.delivering {
+      background: #fff8e1;
+      border-color: #ffb74d;
+    }
+
+    .supply-btn.locked {
+      background: #f5f5f5;
+      border-color: #bdbdbd;
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+
+    .supply-btn.free {
+      background: #e8f5e9;
+      border-color: #81c784;
+    }
+
+    .supply-btn.express {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      border-color: #e65100;
+      color: white;
+    }
+    .supply-btn.express.cooldown {
+      background: #bdbdbd;
+      border-color: #757575;
+      cursor: not-allowed;
+    }
+
+    .supply-icon { font-size: 15px; line-height: 1; }
+    .supply-price { font-size: 7px; font-weight: 900; color: #e65100; margin-top: 1px; }
+    .supply-btn.locked .supply-price { color: #757575; }
+    .supply-btn.express .supply-price { color: white; }
+
+    /* オーダー一覧 */
+    #customer-scroll-wrapper {
+      width: 380px;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: visible;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x !important;
+      margin-bottom: 4px;
+      padding-top: 24px;
+      padding-bottom: 4px;
+    }
+    #customer-scroll-wrapper::-webkit-scrollbar { height: 3px; }
+    #customer-scroll-wrapper::-webkit-scrollbar-thumb { background: #d7ccc8; border-radius: 2px; }
+
+    #customer-list {
+      display: flex;
+      gap: 6px;
+      width: max-content;
+    }
+
+    .order-card {
+      scroll-snap-align: start;
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 4px 6px;
+      width: 92px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      box-shadow: var(--shadow-sm);
+      border: 2px solid #efebe9;
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s, order 0.3s ease;
+    }
+
+    .order-card.ready {
+      order: -1;
+      border-color: #66bb6a;
+      box-shadow: 0 0 8px rgba(102, 187, 106, 0.6);
+      animation: cardPulse 1.5s infinite ease-in-out;
+      background: #f1f8e9;
+    }
+    @keyframes cardPulse {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+
+    .status-indicator {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .status-indicator.not-ready { color: #9e9e9e; }
+    .status-indicator.is-ready {
+      color: #2e7d32;
+      animation: bounceCheck 0.8s infinite alternate ease-in-out;
+    }
+    @keyframes bounceCheck {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.25); }
+    }
+
+    .customer-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-bottom: 1px dashed #efebe9;
+      padding-bottom: 2px;
+    }
+    .customer-avatar {
+      font-size: 12px;
+      background: #fff8e1;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .customer-name { 
+      font-size: 9px; 
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .thanks-bubble {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffecb3;
+      color: #e65100;
+      border: 2px solid #ffa726;
+      border-radius: 10px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 900;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 300;
+      white-space: nowrap;
+      animation: thanksFly 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      pointer-events: none;
+    }
+    @keyframes thanksFly {
+      0% { opacity: 0; transform: translate(-50%, 8px) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, 0px) scale(1.05); }
+      80% { opacity: 1; transform: translate(-50%, 0px) scale(1.05); }
+      100% { opacity: 0; transform: translate(-50%, -10px) scale(0.9); }
+    }
+
+    .order-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 0;
+    }
+    .order-items-group { 
+      display: flex; 
+      gap: 2px; 
+      align-items: center; 
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .order-item-slot {
+      font-size: 14px;
+      background: #f5f5f5;
+      padding: 1px 3px;
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+    }
+    .order-item-slot.fulfilled::after {
+      content: "✓";
+      position: absolute;
+      bottom: -2px; right: -2px;
+      background: #4caf50; color: white;
+      font-size: 7px; width: 10px; height: 10px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold;
+    }
+
+    /* メインゲームエリア */
+    #main-game-area {
+      width: 380px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 所持箱リスト（盤面と同じ幅 300px） */
+    #inventory-section {
+      width: 300px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #8d6e63;
+      border-radius: 10px;
+      padding: 4px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .inventory-item {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      background: #ffffff;
+      border: 1.5px solid #ffb74d;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.1s;
+    }
+    .inventory-item:active { transform: scale(0.92); }
+
+    .inventory-item.express {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      border-color: #e65100;
+      color: white;
+    }
+    .inventory-item.express.cooldown {
+      background: #bdbdbd;
+      border-color: #757575;
+      cursor: not-allowed;
+    }
+
+    .inventory-item.locked {
+      background: #f5f5f5;
+      border-color: #bdbdbd;
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+
+    .inventory-count-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      background: #e65100;
+      color: white;
+      font-size: 7px;
+      font-weight: 900;
+      padding: 0px 3px;
+      border-radius: 6px;
+      border: 1px solid white;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      line-height: 1.1;
+    }
+
+    .inventory-express-label {
+      font-size: 6px;
+      font-weight: 900;
+      position: absolute;
+      bottom: 1px;
+      line-height: 1;
+    }
+
+    #board-container {
+      position: relative;
+      width: 290px;
+      height: 290px;
+      background: var(--board-bg);
+      border: 4px solid var(--board-border);
+      border-radius: 14px;
+      padding: 5px;
+      box-shadow: var(--shadow-md);
+      touch-action: none;
+      flex-shrink: 0;
+      box-sizing: content-box;
+    }
+
+    #grid {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      display: grid;
+      grid-template-columns: repeat(7, 38px);
+      grid-template-rows: repeat(7, 38px);
+      gap: 4px;
+    }
+
+    .cell {
+      width: 38px;
+      height: 38px;
+      background: var(--cell-bg);
+      border-radius: 8px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cell.locked {
+      background-color: #d7ccc8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .cell.locked .lock-icon {
+      font-size: 12px;
+      line-height: 1;
+    }
+    .cell.locked .unlock-lvl {
+      font-size: 7px;
+      font-weight: 900;
+      color: #5d4037;
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    #trash-bar {
+      width: 300px;
+      max-width: 100%;
+      height: 32px;
+      margin-top: 2px;
+      background: #ffebee;
+      border: 2px dashed #ef5350;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #c62828;
+      font-size: 10px;
+      font-weight: bold;
+      gap: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* アイテムノード */
+    .item-node {
+      width: 38px;
+      height: 38px;
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: grab;
+      transition: transform 0.05s ease, opacity 0.2s, left 0.15s ease, top 0.15s ease;
+      z-index: 10;
+      touch-action: none;
+    }
+
+    .item-node.dragging {
+      transition: none !important;
+      opacity: 0.9;
+      transform: scale(1.25);
+      z-index: 100;
+      cursor: grabbing;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3));
+    }
+
+    .item-node.merged {
+      animation: mergePop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes mergePop {
+      0% { transform: scale(0.4); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    .item-node.consume-out {
+      animation: consumeAnim 0.4s ease-out forwards;
+      pointer-events: none;
+    }
+    @keyframes consumeAnim {
+      0% { transform: scale(1) rotate(0deg); opacity: 1; }
+      50% { transform: scale(1.3) rotate(15deg); opacity: 0.8; }
+      100% { transform: scale(0) rotate(-30deg); opacity: 0; }
+    }
+
+    .float-text {
+      position: fixed;
+      font-weight: 900;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 9999;
+      white-space: nowrap;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 2px #fff;
+      animation: floatNotice 1.8s ease-out forwards;
+      transform: translate(-50%, -50%);
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      transition: top 0.2s ease;
+    }
+    .float-text.delivery-success { color: #2e7d32; border: 2px solid #81c784; }
+    .float-text.delivery-interrupted { color: #c62828; border: 2px solid #ef5350; }
+    .float-text.title-unlocked { color: #e65100; border: 2px solid #ffd700; background: #fffde7; font-size: 14px; }
+    .float-text.lvl2 { color: #1e88e5; }
+    .float-text.lvl3 { color: #d81b60; font-size: 16px; }
+
+    @keyframes floatNotice {
+      0% { opacity: 0; transform: translate(-50%, -20%) scale(0.8); }
+      15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+      100% { opacity: 0; transform: translate(-50%, -80%) scale(0.9); }
+    }
+
+    .sparkle-effect {
+      position: absolute;
+      pointer-events: none;
+      font-size: 16px;
+      z-index: 150;
+      animation: sparkleFly 0.5s ease-out forwards;
+    }
+    @keyframes sparkleFly {
+      0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); }
+    }
+
+    .item-node.box {
+      border-radius: 8px;
+      border: 2px solid rgba(0,0,0,0.2);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+    }
+
+    .item-node.box.food      { background: var(--color-food); }
+    .item-node.box.drink     { background: var(--color-drink); }
+    .item-node.box.dish      { background: var(--color-dish); }
+    .item-node.box.accessory { background: var(--color-accessory); }
+    .item-node.box.furniture { background: var(--color-furniture); }
+    .item-node.box.goods     { background: var(--color-goods); }
+    .item-node.box.animal    { background: var(--color-animal); }
+
+    .box-count {
+      position: absolute;
+      bottom: 1px;
+      right: 2px;
+      font-size: 8px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 0 3px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 10000;
+      align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px 16px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      border: 3px solid #ffb74d;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-title { font-size: 16px; font-weight: 900; color: #e65100; margin-bottom: 8px; }
+    .modal-body { font-size: 11px; font-weight: bold; color: #3e2723; margin-bottom: 12px; line-height: 1.4; white-space: pre-wrap; }
+    .modal-btn {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      color: white; border: none; padding: 6px 20px;
+      border-radius: 20px; font-weight: bold; font-size: 13px;
+      cursor: pointer; box-shadow: 0 4px 10px rgba(245, 124, 0, 0.4);
+    }
+    .modal-btn-sub {
+      background: #9e9e9e;
+      color: white; border: none; padding: 6px 20px;
+      border-radius: 20px; font-weight: bold; font-size: 13px;
+      cursor: pointer; margin-left: 8px;
+    }
+
+    /* 設定モーダル内の項目 */
+    .setting-group {
+      text-align: left;
+      margin-bottom: 10px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .setting-group label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    .setting-group input[type="range"] {
+      width: 100%;
+    }
+    .setting-group textarea {
+      width: 100%;
+      height: 60px;
+      font-size: 10px;
+      resize: none;
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .setting-buttons {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .setting-btn {
+      background: #78909c;
+      color: white; border: none; padding: 4px 10px;
+      border-radius: 6px; font-weight: bold; font-size: 10px;
+      cursor: pointer;
+    }
+
+    /* 称号一覧用モーダルスタイル（グリッド対応） */
+    .title-list-container {
+      max-height: 220px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      padding: 4px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .title-grid-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1.5px solid #ccc;
+    }
+
+    /* 称号アイコンのレア度（スター）に応じた色分け */
+    .title-star1 { background: linear-gradient(135deg, #f5f5f5, #e0e0e0); border-color: #bdbdbd; color: #616161; }
+    .title-star2 { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-color: #81c784; color: #2e7d32; }
+    .title-star3 { background: linear-gradient(135deg, #e3f2fd, #bbdefb); border-color: #64b5f6; color: #1565c0; }
+    .title-star4 { background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-color: #ffb74d; color: #ef6c00; }
+    .title-star5 {
+      background: linear-gradient(135deg, #f3e5f5, #e1bee7, #fff9c4);
+      border: 2px solid #ba68c8;
+      color: #7b1fa2;
+      box-shadow: 0 0 6px rgba(186, 104, 200, 0.5);
+    }
+
+    .title-grid-item.locked-title {
+      background: #f0f0f0 !important;
+      border-color: #d6d6d6 !important;
+      color: #9e9e9e !important;
+      opacity: 0.8;
+      box-shadow: none !important;
+    }
+
+    /* 閉じるボタン上の小さめ詳細表示エリア変更 */
+    .title-info-display {
+      font-size: 8px;
+      color: #5d4037;
+      background: #fff8e1;
+      border: 1px solid #ffe0b2;
+      border-radius: 6px;
+      padding: 4px;
+      margin-bottom: 8px;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* レシピ表示モーダル */
+    .recipe-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #faf8f5;
+      padding: 8px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #efebe9;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .recipe-branch-title {
+      font-size: 10px;
+      font-weight: bold;
+      color: #e65100;
+      text-align: left;
+      margin-bottom: 2px;
+    }
+    .recipe-chain-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .recipe-icon-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 16px;
+      background: #fff;
+      border: 1px solid #ffe0b2;
+      border-radius: 6px;
+      padding: 2px;
+      min-width: 30px;
+      flex-shrink: 0;
+    }
+    .recipe-icon-box.locked-item {
+      background: #f5f5f5;
+      border-color: #e0e0e0;
+      opacity: 0.6;
+    }
+    .recipe-level-lbl {
+      font-size: 7px;
+      color: #8d6e63;
+      font-weight: bold;
+    }
+
+    #confetti-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 10001;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <header>
+    <h1>☕ マージカフェ</h1>
+    <div class="header-status">
+      <!-- 称号ボタン -->
+      <div class="badge badge-title" onclick="openTitleModal()">
+        👑 <span id="title-count">0</span>
+      </div>
+
+      <!-- 設定ボタン -->
+      <div class="badge badge-setting" onclick="openSettingModal()">
+        ⚙️
+      </div>
+
+      <!-- レベル＆経験値バー -->
+      <div class="badge-level-wrapper">
+        <div class="level-text-row">
+          <span>⭐ Lv.<span id="level">1</span></span>
+          <span style="font-size: 8px; opacity: 0.9;"><span id="xp">0</span>/<span id="next-xp">100</span></span>
+        </div>
+        <div class="xp-bar-container">
+          <div class="xp-bar-fill" id="xp-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- コイン＆長押し用吹き出し -->
+      <div class="badge badge-coin" id="coin-badge">
+        💰 <span id="coins">100</span>
+        <div class="coin-tooltip" id="coin-tooltip">100 G</div>
+      </div>
+    </div>
+  </header>
+
+  <div id="supply-section">
+    <div class="supply-title">
+      <span>📦 配送ショップ（無料）</span>
+      <span style="font-size: 8px; color: #8d6e63; font-weight: normal;">注文して配送待ち / 長押しで図鑑</span>
+    </div>
+    <div class="supply-grid" id="supply-list"></div>
+  </div>
+
+  <div id="customer-scroll-wrapper">
+    <div id="customer-list"></div>
+  </div>
+
+  <div id="main-game-area">
+    <div id="inventory-section"></div>
+    <div id="board-container">
+      <div id="grid"></div>
+    </div>
+    <div id="trash-bar">
+      🗑️ ここへドラッグして削除
+    </div>
+  </div>
+
+  <!-- 起動時音声確認モーダル -->
+  <div id="audio-prompt-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title">🔊 音声再生の確認</div>
+      <div class="modal-body">ゲーム中のBGM・効果音を再生しますか？</div>
+      <div style="display: flex; justify-content: center; gap: 8px;">
+        <button class="modal-btn" onclick="handleAudioChoice(true)">はい</button>
+        <button class="modal-btn-sub" onclick="handleAudioChoice(false)">いいえ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 汎用アラートモーダル -->
+  <div id="custom-alert-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title" id="custom-alert-title">お知らせ</div>
+      <div class="modal-body" id="custom-alert-msg"></div>
+      <button class="modal-btn" onclick="closeModal('custom-alert-modal')">OK</button>
+    </div>
+  </div>
+
+  <!-- 設定モーダル -->
+  <div id="setting-modal" class="modal-overlay">
+    <div class="modal-content" style="width: 340px;">
+      <div class="modal-title">⚙️ 設定</div>
+      <div class="setting-group">
+        <label><span>BGM音量</span><span id="bgm-vol-val">50%</span></label>
+        <input type="range" id="bgm-vol-range" min="0" max="100" value="50" oninput="updateVolumeSettings()">
+      </div>
+      <div class="setting-group">
+        <label><span>SE音量</span><span id="se-vol-val">50%</span></label>
+        <input type="range" id="se-vol-range" min="0" max="100" value="50" oninput="updateVolumeSettings()">
+      </div>
+      <div class="setting-group">
+        <label><span>セーブ / ロード文字列 (最大512文字)</span></label>
+        <textarea id="save-load-textarea" placeholder="ここにセーブ文字列が表示されます、またはロードしたい文字列を入力"></textarea>
+        <div class="setting-buttons">
+          <button class="setting-btn" onclick="executeExportString()">セーブ文字列出力</button>
+          <button class="setting-btn" onclick="executeImportStringPrompt()">ロード実行</button>
+        </div>
+      </div>
+      <button class="modal-btn" style="margin-top: 4px;" onclick="closeModal('setting-modal')">閉じる</button>
+    </div>
+  </div>
+
+  <!-- ロード確認用モーダル -->
+  <div id="load-confirm-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title">⚠️ ロード確認</div>
+      <div class="modal-body">今の環境を上書きしますか？</div>
+      <div style="display: flex; justify-content: center; gap: 8px;">
+        <button class="modal-btn" onclick="confirmLoadState()">上書きしてロード</button>
+        <button class="modal-btn-sub" onclick="closeModal('load-confirm-modal')">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- レベルアップモーダル -->
+  <div id="congrat-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title" id="modal-title">🎉 LEVEL UP!</div>
+      <div class="modal-body" id="modal-msg"></div>
+      <button class="modal-btn" onclick="closeModal('congrat-modal')">OK!</button>
+    </div>
+  </div>
+
+  <!-- 称号一覧モーダル -->
+  <div id="title-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title">👑 獲得称号一覧</div>
+      <div class="title-list-container" id="title-list-container"></div>
+      <div class="title-info-display" id="title-info-display">称号をタップまたは長押しすると詳細が表示されます</div>
+      <button class="modal-btn" onclick="closeModal('title-modal')">閉じる</button>
+    </div>
+  </div>
+
+  <!-- レシピダイアログ（長押し時） -->
+  <div id="recipe-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title" id="recipe-modal-title">📖 進化レシピ</div>
+      <div id="recipe-modal-body"></div>
+      <button class="modal-btn" onclick="closeModal('recipe-modal')">閉じる</button>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------------
+    // アラートのモーダル化ラッパー
+    // ----------------------------------------------------
+    function showAlert(message, title = "お知らせ") {
+      document.getElementById('custom-alert-title').innerText = title;
+      document.getElementById('custom-alert-msg').innerText = message;
+      document.getElementById('custom-alert-modal').style.display = 'flex';
+    }
+
+    // ----------------------------------------------------
+    // 音声管理 (SE & BGM)
+    // ----------------------------------------------------
+    const sounds = {
+      merge: new Audio('merge.mp3'),
+      pop: new Audio('pop.mp3'),
+      serve: new Audio('serve.mp3'),
+      drive: new Audio('drive.mp3'),
+      bgm: new Audio('bgm.mp3')
+    };
+
+    sounds.bgm.loop = true;
+
+    let soundConfig = {
+      bgmVolume: 0.5,
+      seVolume: 0.5,
+      audioEnabled: false
+    };
+
+    function applyVolume() {
+      sounds.bgm.volume = soundConfig.audioEnabled ? soundConfig.bgmVolume : 0;
+      const seVol = soundConfig.audioEnabled ? soundConfig.seVolume : 0;
+      Object.keys(sounds).forEach(k => {
+        if (k !== 'bgm') {
+          sounds[k].volume = seVol;
+        }
+      });
+    }
+
+    function playSound(name) {
+      if (!soundConfig.audioEnabled) return;
+      const audio = sounds[name];
+      if (audio) {
+        audio.currentTime = 0;
+        audio.volume = soundConfig.seVolume;
+        audio.play().catch(() => {});
+      }
+    }
+
+    function handleAudioChoice(enabled) {
+      soundConfig.audioEnabled = enabled;
+      applyVolume();
+      if (enabled) {
+        sounds.bgm.play().catch(() => {});
+      }
+      closeModal('audio-prompt-modal');
+      saveAudioConfig();
+    }
+
+    function saveAudioConfig() {
+      localStorage.setItem('merge_cafe_audio_config', JSON.stringify(soundConfig));
+    }
+
+    function loadAudioConfig() {
+      const saved = localStorage.getItem('merge_cafe_audio_config');
+      if (saved) {
+        try {
+          soundConfig = { ...soundConfig, ...JSON.parse(saved) };
+          document.getElementById('audio-prompt-modal').style.display = 'none';
+          applyVolume();
+          if (soundConfig.audioEnabled) {
+            sounds.bgm.play().catch(() => {});
+          }
+          return;
+        } catch(e) {}
+      }
+      // 設定がまだ保存されていない場合はモーダルを表示して音声を流さない
+      document.getElementById('audio-prompt-modal').style.display = 'flex';
+    }
+
+    function openSettingModal() {
+      document.getElementById('bgm-vol-range').value = Math.round(soundConfig.bgmVolume * 100);
+      document.getElementById('bgm-vol-val').innerText = Math.round(soundConfig.bgmVolume * 100) + '%';
+      document.getElementById('se-vol-range').value = Math.round(soundConfig.seVolume * 100);
+      document.getElementById('se-vol-val').innerText = Math.round(soundConfig.seVolume * 100) + '%';
+      document.getElementById('save-load-textarea').value = '';
+      document.getElementById('setting-modal').style.display = 'flex';
+    }
+
+    function updateVolumeSettings() {
+      const bgmVal = parseInt(document.getElementById('bgm-vol-range').value);
+      const seVal = parseInt(document.getElementById('se-vol-range').value);
+      soundConfig.bgmVolume = bgmVal / 100;
+      soundConfig.seVolume = seVal / 100;
+      document.getElementById('bgm-vol-val').innerText = bgmVal + '%';
+      document.getElementById('se-vol-val').innerText = seVal + '%';
+      applyVolume();
+      saveAudioConfig();
+    }
+
+    function executeExportString() {
+      try {
+        const jsonStr = JSON.stringify(state);
+        const encoded = btoa(encodeURIComponent(jsonStr));
+        document.getElementById('save-load-textarea').value = encoded;
+      } catch(e) {
+        showAlert("セーブデータの出力に失敗しました。");
+      }
+    }
+
+    let pendingImportJson = null;
+
+    function executeImportStringPrompt() {
+      const val = document.getElementById('save-load-textarea').value.trim();
+      if (!val) {
+        showAlert("ロードする文字列を入力してください。");
+        return;
+      }
+      try {
+        const decoded = decodeURIComponent(atob(val));
+        const parsed = JSON.parse(decoded);
+        if (!parsed || typeof parsed !== 'object' || !parsed.board) {
+          throw new Error("Invalid structure");
+        }
+        pendingImportJson = parsed;
+        document.getElementById('load-confirm-modal').style.display = 'flex';
+      } catch(e) {
+        showAlert("不正な文字列です。");
+      }
+    }
+
+    function confirmLoadState() {
+      if (pendingImportJson) {
+        state = pendingImportJson;
+        if (!state.discoveredItems) state.discoveredItems = {};
+        if (!state.unlockedTitles) state.unlockedTitles = [];
+        if (!state.stats) {
+          state.stats = { servedCustomers: 0, expressCount: 0, maxCoins: state.coins || 100 };
+        }
+        saveState();
+        render();
+        closeModal('load-confirm-modal');
+        closeModal('setting-modal');
+        queueFloatNotice('🔄 データをロードしました', 'delivery-success');
+      }
+      pendingImportJson = null;
+    }
+
+    const MAX_ROWS = 7;
+    const MAX_COLS = 7;
+    const CELL_SIZE = 38;
+    const GAP = 4;
+
+    const UNLOCK_SEQUENCE = [
+      { r: 1, c: 2, level: 2 },  { r: 1, c: 3, level: 3 },  { r: 1, c: 4, level: 4 },
+      { r: 1, c: 5, level: 5 },  { r: 2, c: 5, level: 6 },  { r: 3, c: 5, level: 7 },
+      { r: 4, c: 5, level: 8 },  { r: 5, c: 5, level: 9 },  { r: 5, c: 4, level: 10 },
+      { r: 5, c: 3, level: 11 }, { r: 5, c: 2, level: 12 }, { r: 5, c: 1, level: 14 },
+      { r: 4, c: 1, level: 16 }, { r: 3, c: 1, level: 18 }, { r: 2, c: 1, level: 20 },
+      { r: 1, c: 1, level: 22 }, { r: 0, c: 1, level: 24 }, { r: 0, c: 2, level: 26 },
+      { r: 0, c: 3, level: 28 }, { r: 0, c: 4, level: 30 }, { r: 0, c: 5, level: 32 },
+      { r: 0, c: 6, level: 35 }, { r: 1, c: 6, level: 38 }, { r: 2, c: 6, level: 41 },
+      { r: 3, c: 6, level: 44 }, { r: 4, c: 6, level: 47 }, { r: 5, c: 6, level: 50 },
+      { r: 6, c: 6, level: 53 }, { r: 6, c: 5, level: 56 }, { r: 6, c: 4, level: 59 },
+      { r: 6, c: 3, level: 62 }, { r: 6, c: 2, level: 65 }, { r: 6, c: 1, level: 68 },
+      { r: 6, c: 0, level: 72 }, { r: 5, c: 0, level: 76 }, { r: 4, c: 0, level: 80 },
+      { r: 3, c: 0, level: 84 }, { r: 2, c: 0, level: 88 }, { r: 1, c: 0, level: 92 },
+      { r: 0, c: 0, level: 96 }
+    ];
+
+    const CHAINS = {
+      food: {
+        name: 'フード箱', icon: '🌾', levelReq: 1, deliveryTime: 2, color: 'food',
+        branches: {
+          A: { name: 'パン・ファストフード', items: ['🍞', '🥪', '🍔', '🍟', '🍕', '🍖'] },
+          B: { name: 'スイーツ・お菓子',     items: ['🍪', '🍩', '🥞', '🧁', '🍰', '🎂'] }
+        }
+      },
+      drink: {
+        name: 'ドリンク箱', icon: '🥤', levelReq: 2, deliveryTime: 5, color: 'drink',
+        branches: {
+          A: { name: 'カフェ・お茶', items: ['🥛', '☕', '🍵', '🧋', '🫖', '🍧'] },
+          B: { name: '果汁・お酒',   items: ['🍋', '🧃', '🍹', '🍺', '🍷', '🍾'] }
+        }
+      },
+      dish: {
+        name: '食器・日用品箱', icon: '🍽️', levelReq: 8, deliveryTime: 15, color: 'dish',
+        branches: {
+          A: { name: '食器・カトラリー', items: ['🥄', '🍴', '🥣', '🍽️', '🥂', '🏺'] },
+          B: { name: '衛生・清掃用品',   items: ['🧻', '🪥', '🧼', '🧽', '🧹', '🪣'] }
+        }
+      },
+      accessory: {
+        name: 'アクセ・ファッション箱', icon: '💍', levelReq: 12, deliveryTime: 30, color: 'accessory',
+        branches: {
+          A: { name: 'アクセサリー・装飾', items: ['🎀', '👓', '💍', '📿', '👑', '💎'] },
+          B: { name: 'コスメ・ビューティー', items: ['💄', '💅', '🪞', '🧴', '🧰', '🪮'] }
+        }
+      },
+      furniture: {
+        name: '家具・インテリア箱', icon: '🪑', levelReq: 22, deliveryTime: 60, color: 'furniture',
+        branches: {
+          A: { name: '大型家具',  items: ['🪴', '🪑', '🛋️', '𛏏', '🪟', '🏰'] },
+          B: { name: '照明・家電', items: ['🕯️', '💡', '📻', '📺', '💻', '🖥️'] }
+        }
+      },
+      goods: {
+        name: '雑貨・ホビー箱', icon: '🧸', levelReq: 32, deliveryTime: 90, color: 'goods',
+        branches: {
+          A: { name: 'おもちゃ・パーツ', items: ['🎈', '🧸', '🎨', '🧩', '🤖', '🎮'] },
+          B: { name: '楽器・音楽',       items: ['🪕', '🎸', '🎷', '🎹', '🎼', '🎙️'] }
+        }
+      },
+      animal: {
+        name: 'ペット・生物箱', icon: '🐾', levelReq: 50, deliveryTime: 120, color: 'animal',
+        branches: {
+          A: { name: '陸の生き物',   items: ['🥚', '🐣', '🐱', '🐶', '🦄', '🐉'] },
+          B: { name: '水辺の生き物', items: ['🦐', '🐟', '🪼', '🐙', '🐬', '🐳'] }
+        }
+      }
+    };
+
+    const TITLES_MASTER = [
+      {
+        id: 'recipe_food_max',
+        name: '三ツ星シェフ',
+        icon: '🌾',
+        stars: 3,
+        desc: 'フード系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'food')
+      },
+      {
+        id: 'recipe_drink_max',
+        name: '至高のバリスタ',
+        icon: '🥤',
+        stars: 3,
+        desc: 'ドリンク系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'drink')
+      },
+      {
+        id: 'recipe_dish_max',
+        name: '完璧な生活用品係',
+        icon: '🍽️',
+        stars: 3,
+        desc: '食器・日用品系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'dish')
+      },
+      {
+        id: 'recipe_accessory_max',
+        name: 'ハイファッション',
+        icon: '💍',
+        stars: 4,
+        desc: 'アクセ系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'accessory')
+      },
+      {
+        id: 'recipe_furniture_max',
+        name: 'インテリアコーディネーター',
+        icon: '🪑',
+        stars: 4,
+        desc: '家具系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'furniture')
+      },
+      {
+        id: 'recipe_goods_max',
+        name: 'ホビーマニア',
+        icon: '🧸',
+        stars: 4,
+        desc: '雑貨系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'goods')
+      },
+      {
+        id: 'recipe_animal_max',
+        name: 'ビーストテイマー',
+        icon: '🐾',
+        stars: 5,
+        desc: 'ペット系統の全進化レシピ(Lv6)を解禁',
+        check: (s) => isBranchMaxUnlocked(s, 'animal')
+      },
+      {
+        id: 'lvl_2',
+        name: '新米マスター',
+        icon: '⭐',
+        stars: 1,
+        desc: 'プレイヤーレベル2到達',
+        check: (s) => s.level >= 2
+      },
+      {
+        id: 'lvl_10',
+        name: 'カフェ経営の開拓者',
+        icon: '⭐',
+        stars: 2,
+        desc: 'プレイヤーレベル10到達',
+        check: (s) => s.level >= 10
+      },
+      {
+        id: 'lvl_50',
+        name: 'マージマスター',
+        icon: '⭐',
+        stars: 3,
+        desc: 'プレイヤーレベル50到達',
+        check: (s) => s.level >= 50
+      },
+      {
+        id: 'lvl_100',
+        name: 'カフェの大家',
+        icon: '⭐',
+        stars: 4,
+        desc: 'プレイヤーレベル100到達',
+        check: (s) => s.level >= 100
+      },
+      {
+        id: 'lvl_200',
+        name: '業界のカリスマ',
+        icon: '⭐',
+        stars: 4,
+        desc: 'プレイヤーレベル200到達',
+        check: (s) => s.level >= 200
+      },
+      {
+        id: 'lvl_500',
+        name: '伝説の経営神',
+        icon: '⭐',
+        stars: 5,
+        desc: 'プレイヤーレベル500到達',
+        check: (s) => s.level >= 500
+      },
+      {
+        id: 'lvl_1000',
+        name: '全宇宙のマージ王',
+        icon: '⭐',
+        stars: 5,
+        desc: 'プレイヤーレベル1000到達',
+        check: (s) => s.level >= 1000
+      },
+      {
+        id: 'gold_100',
+        name: '財布の中の小銭',
+        icon: '💰',
+        stars: 1,
+        desc: 'お金100G到達',
+        check: (s) => s.coins >= 100 || s.stats.maxCoins >= 100
+      },
+      {
+        id: 'gold_1k',
+        name: '初めての売上',
+        icon: '💰',
+        stars: 1,
+        desc: 'お金1,000G到達',
+        check: (s) => s.coins >= 1000 || s.stats.maxCoins >= 1000
+      },
+      {
+        id: 'gold_10k',
+        name: '期待のプチ成金',
+        icon: '💰',
+        stars: 2,
+        desc: 'お金10,000G到達',
+        check: (s) => s.coins >= 10000 || s.stats.maxCoins >= 10000
+      },
+      {
+        id: 'gold_100k',
+        name: '繁盛店のオーナー',
+        icon: '💰',
+        stars: 3,
+        desc: 'お金100,000G到達',
+        check: (s) => s.coins >= 100000 || s.stats.maxCoins >= 100000
+      },
+      {
+        id: 'gold_1m',
+        name: 'カフェ長者',
+        icon: '💰',
+        stars: 4,
+        desc: 'お金1,000,000G到達',
+        check: (s) => s.coins >= 1000000 || s.stats.maxCoins >= 1000000
+      },
+      {
+        id: 'gold_max',
+        name: '大富豪の領域',
+        icon: '💰',
+        stars: 5,
+        desc: 'お金9,999,999G到達',
+        check: (s) => s.coins >= 9999999 || s.stats.maxCoins >= 9999999
+      },
+      {
+        id: 'served_1',
+        name: '記念すべき一杯',
+        icon: '🤝',
+        stars: 1,
+        desc: '要望クリア数1回',
+        check: (s) => s.stats.servedCustomers >= 1
+      },
+      {
+        id: 'served_10',
+        name: '駆け出しマスター',
+        icon: '🤝',
+        stars: 1,
+        desc: '要望クリア数10回',
+        check: (s) => s.stats.servedCustomers >= 10
+      },
+      {
+        id: 'served_50',
+        name: '頼れる店員さん',
+        icon: '🤝',
+        stars: 2,
+        desc: '要望クリア数50回',
+        check: (s) => s.stats.servedCustomers >= 50
+      },
+      {
+        id: 'served_100',
+        name: '人気カフェ店主',
+        icon: '🤝',
+        stars: 3,
+        desc: '要望クリア数100回',
+        check: (s) => s.stats.servedCustomers >= 100
+      },
+      {
+        id: 'served_500',
+        name: '伝説の接客神',
+        icon: '🤝',
+        stars: 4,
+        desc: '要望クリア数500回',
+        check: (s) => s.stats.servedCustomers >= 500
+      },
+      {
+        id: 'served_1000',
+        name: 'おもてなしの化身',
+        icon: '🤝',
+        stars: 5,
+        desc: '要望クリア数1000回',
+        check: (s) => s.stats.servedCustomers >= 1000
+      }
+    ];
+
+    function isBranchMaxUnlocked(s, chainKey) {
+      const chain = CHAINS[chainKey];
+      if (!chain) return false;
+      return ['A', 'B'].every(bKey => {
+        const lastIdx = chain.branches[bKey].items.length - 1;
+        return !!s.discoveredItems[`${chainKey}_${bKey}_${lastIdx}`];
+      });
+    }
+
+    const CUSTOMER_AVATARS = ['👧', '👦', '👩', '👨', '👵', '👴', '👱‍♀️', '🧔', '👸', '🧙‍♂️'];
+    const CUSTOMER_NAMES = ['さくら', 'たろう', 'ひなた', 'けんた', 'あおい', 'じゅん', 'みくる', 'ゆうき', 'りん', 'れん'];
+    const THANKS_MESSAGES = ["嬉しい！ありがとう！", "わぁ、素敵！", "これだよこれ！感謝！", "最高の気分です！","これを求めてたんだよ！","最高！","また来るね！","いいね！"];
+
+    let state = {
+      level: 1,
+      xp: 0,
+      nextXp: 100,
+      coins: 100,
+      unlockedCells: [],
+      board: Array(MAX_ROWS * MAX_COLS).fill(null),
+      customers: [],
+      inventory: {},
+      activeDeliveries: {},
+      expressCooldown: 0,
+      discoveredItems: {},
+      unlockedTitles: [],
+      stats: {
+        servedCustomers: 0,
+        expressCount: 0,
+        maxCoins: 100
+      }
+    };
+
+    let timerInterval = null;
+    let floatNoticeQueue = [];
+    let isShowingFloat = false;
+
+    function init() {
+      loadAudioConfig();
+      loadState();
+      if (!state.unlockedCells || state.unlockedCells.length === 0) {
+        initCenterCells();
+      }
+      checkCellUnlocks();
+      while (state.customers.length < 4) {
+        spawnCustomer();
+      }
+      sortCustomers();
+
+      checkTitlesUnlock();
+      render();
+      setupGlobalInput();
+      setupVisibilityHandler();
+      setupCoinTooltipHandler();
+
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(updateTimers, 1000);
+    }
+
+    function initCenterCells() {
+      state.unlockedCells = [];
+      for (let r = 2; r <= 4; r++) {
+        for (let c = 2; c <= 4; c++) {
+          state.unlockedCells.push(r * MAX_COLS + c);
+        }
+      }
+    }
+
+    function checkCellUnlocks() {
+      UNLOCK_SEQUENCE.forEach(item => {
+        const idx = item.r * MAX_COLS + item.c;
+        if (state.level >= item.level && !state.unlockedCells.includes(idx)) {
+          state.unlockedCells.push(idx);
+        }
+      });
+    }
+
+    function getCellRequiredLevel(cellIdx) {
+      const r = Math.floor(cellIdx / MAX_COLS);
+      const c = cellIdx % MAX_COLS;
+      if (r >= 2 && r <= 4 && c >= 2 && c <= 4) return 1;
+      const found = UNLOCK_SEQUENCE.find(item => item.r === r && item.c === c);
+      return found ? found.level : 99;
+    }
+
+    function markItemAsDiscovered(chain, branch, level) {
+      const key = `${chain}_${branch}_${level}`;
+      if (!state.discoveredItems[key]) {
+        state.discoveredItems[key] = true;
+        checkTitlesUnlock();
+        saveState();
+      }
+    }
+
+    function checkTitlesUnlock() {
+      let newlyUnlocked = false;
+
+      TITLES_MASTER.forEach(title => {
+        if (!state.unlockedTitles.includes(title.id)) {
+          if (title.check(state)) {
+            state.unlockedTitles.push(title.id);
+            newlyUnlocked = true;
+            queueFloatNotice(`👑 称号獲得:【${title.name}】`, 'title-unlocked');
+          }
+        }
+      });
+
+      if (newlyUnlocked) {
+        saveState();
+        renderHeader();
+      }
+    }
+
+    function renderHeader() {
+      document.getElementById('level').innerText = state.level;
+      document.getElementById('xp').innerText = state.xp;
+      document.getElementById('next-xp').innerText = state.nextXp;
+
+      const pct = Math.min(100, Math.max(0, (state.xp / state.nextXp) * 100));
+      document.getElementById('xp-bar-fill').style.width = pct + '%';
+
+      const coinEl = document.getElementById('coins');
+      const tooltipEl = document.getElementById('coin-tooltip');
+      if (state.coins > 9999999) {
+        coinEl.innerText = '9,999,999+';
+      } else {
+        coinEl.innerText = state.coins.toLocaleString();
+      }
+      tooltipEl.innerText = state.coins.toLocaleString() + ' G';
+
+      document.getElementById('title-count').innerText = state.unlockedTitles.length;
+    }
+
+    function render() {
+      renderHeader();
+      renderSupplyList();
+      renderGrid();
+      renderItems();
+      renderCustomers();
+      renderInventory();
+    }
+
+    function updateTimers() {
+      let changed = false;
+
+      Object.keys(state.activeDeliveries).forEach(chainKey => {
+        if (state.activeDeliveries[chainKey] > 0) {
+          state.activeDeliveries[chainKey]--;
+          changed = true;
+
+          if (state.activeDeliveries[chainKey] <= 0) {
+            delete state.activeDeliveries[chainKey];
+            addBoxToInventory(chainKey, 1);
+            queueFloatNotice(`🚚 ${CHAINS[chainKey].name} が到着しました！`, 'delivery-success');
+          }
+        }
+      });
+
+      if (state.expressCooldown > 0) {
+        state.expressCooldown--;
+        changed = true;
+      }
+
+      if (changed) {
+        saveState();
+        renderSupplyList();
+        renderInventory();
+      }
+    }
+
+    function setupVisibilityHandler() {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          const deliveringKeys = Object.keys(state.activeDeliveries);
+          if (deliveringKeys.length > 0) {
+            state.activeDeliveries = {};
+            saveState();
+            queueFloatNotice('⚠️ 画面から離れたため配送が中断されました', 'delivery-interrupted');
+            renderSupplyList();
+          }
+        }
+      });
+    }
+
+    function setupCoinTooltipHandler() {
+      const badge = document.getElementById('coin-badge');
+      const tooltip = document.getElementById('coin-tooltip');
+      let pressTimer = null;
+
+      const show = () => { tooltip.style.display = 'block'; };
+      const hide = () => {
+        if (pressTimer) clearTimeout(pressTimer);
+        tooltip.style.display = 'none';
+      };
+
+      badge.addEventListener('pointerdown', () => { pressTimer = setTimeout(show, 400); });
+      badge.addEventListener('pointerup', hide);
+      badge.addEventListener('pointerleave', hide);
+      badge.addEventListener('pointercancel', hide);
+    }
+
+    function queueFloatNotice(msg, typeClass) {
+      floatNoticeQueue.push({ msg, typeClass });
+      processFloatQueue();
+    }
+
+    function processFloatQueue() {
+      if (isShowingFloat || floatNoticeQueue.length === 0) return;
+      isShowingFloat = true;
+
+      const { msg, typeClass } = floatNoticeQueue.shift();
+
+      const floatEl = document.createElement('div');
+      floatEl.className = `float-text ${typeClass}`;
+      floatEl.innerText = msg;
+      
+      floatEl.style.left = (window.innerWidth / 2) + 'px';
+      floatEl.style.top = (window.innerHeight / 3.5) + 'px';
+
+      document.body.appendChild(floatEl);
+
+      setTimeout(() => {
+        floatEl.remove();
+        isShowingFloat = false;
+        processFloatQueue();
+      }, 1800);
+    }
+
+    function renderSupplyList() {
+      const container = document.getElementById('supply-list');
+      container.innerHTML = '';
+
+      const expressBtn = document.createElement('div');
+      expressBtn.className = 'supply-btn express';
+      if (state.expressCooldown > 0) {
+        expressBtn.classList.add('cooldown');
+        expressBtn.innerHTML = `<div class="supply-icon">⏳</div><div class="supply-price">${state.expressCooldown}s</div>`;
+      } else {
+        expressBtn.innerHTML = `<div class="supply-icon">🚛</div><div class="supply-price">高速</div>`;
+        expressBtn.onclick = triggerExpressDelivery;
+      }
+      container.appendChild(expressBtn);
+
+      Object.keys(CHAINS).forEach(chainKey => {
+        const info = CHAINS[chainKey];
+        const btn = document.createElement('div');
+        btn.className = 'supply-btn';
+
+        const isLocked = state.level < info.levelReq;
+        const isDelivering = state.activeDeliveries[chainKey] !== undefined;
+
+        if (isLocked) {
+          btn.classList.add('locked');
+          btn.innerHTML = `<div class="supply-icon">🔒</div><div class="supply-price">Lv.${info.levelReq}</div>`;
+        } else if (isDelivering) {
+          btn.classList.add('delivering');
+          const timeLeft = state.activeDeliveries[chainKey];
+          btn.innerHTML = `<div class="supply-icon">🚚</div><div class="supply-price">${timeLeft}s</div>`;
+        } else {
+          btn.classList.add('free');
+          btn.innerHTML = `<div class="supply-icon">${info.icon}</div><div class="supply-price">${info.deliveryTime}s</div>`;
+          btn.onclick = () => startDelivery(chainKey);
+        }
+
+        setupLongPress(btn, () => showRecipeModal(chainKey));
+        container.appendChild(btn);
+      });
+    }
+
+    function startDelivery(chainKey) {
+      const info = CHAINS[chainKey];
+      if (state.level < info.levelReq) return;
+      if (state.activeDeliveries[chainKey] !== undefined) return;
+
+      const currentCount = state.inventory[chainKey] || 0;
+      if (currentCount >= 255) {
+        showAlert("この箱の所持数が最大（255個）に達しています！");
+        return;
+      }
+
+      playSound('drive');
+      state.activeDeliveries[chainKey] = info.deliveryTime;
+      saveState();
+      renderSupplyList();
+    }
+
+    function addBoxToInventory(chainKey, count = 1) {
+      if (!state.inventory[chainKey]) state.inventory[chainKey] = 0;
+      state.inventory[chainKey] = Math.min(255, state.inventory[chainKey] + count);
+      saveState();
+      renderInventory();
+    }
+
+    function renderInventory() {
+      const container = document.getElementById('inventory-section');
+      container.innerHTML = '';
+
+      const expressBtn = document.createElement('div');
+      expressBtn.className = 'inventory-item express';
+      if (state.expressCooldown > 0) {
+        expressBtn.classList.add('cooldown');
+        expressBtn.innerHTML = `<span>⏳</span><span class="inventory-express-label">${state.expressCooldown}s</span>`;
+      } else {
+        expressBtn.innerHTML = `<span>🚚</span><span class="inventory-express-label">高速</span>`;
+        expressBtn.onclick = triggerExpressDelivery;
+      }
+      container.appendChild(expressBtn);
+
+      Object.keys(CHAINS).forEach(chainKey => {
+        const info = CHAINS[chainKey];
+        const isLocked = state.level < info.levelReq;
+        const count = state.inventory[chainKey] || 0;
+
+        const itemEl = document.createElement('div');
+        itemEl.className = 'inventory-item';
+
+        if (isLocked) {
+          itemEl.classList.add('locked');
+          itemEl.innerHTML = `<span>🔒</span>`;
+        } else {
+          itemEl.innerHTML = `<span>${info.icon}</span>`;
+          if (count > 0) {
+            itemEl.innerHTML += `<span class="inventory-count-badge">${count}</span>`;
+            itemEl.onclick = () => spawnBoxFromInventory(chainKey);
+          } else {
+            itemEl.style.opacity = '0.4';
+          }
+        }
+
+        container.appendChild(itemEl);
+      });
+    }
+
+    function triggerExpressDelivery() {
+      if (state.expressCooldown > 0) return;
+
+      const unlockedChains = Object.keys(CHAINS).filter(k => CHAINS[k].levelReq <= state.level);
+      if (unlockedChains.length === 0) return;
+
+      playSound('drive');
+
+      for (let i = 0; i < 2; i++) {
+        const randomChain = unlockedChains[Math.floor(Math.random() * unlockedChains.length)];
+        addBoxToInventory(randomChain, 1);
+      }
+
+      state.expressCooldown = 60;
+      state.stats.expressCount = (state.stats.expressCount || 0) + 1;
+      checkTitlesUnlock();
+
+      saveState();
+      renderSupplyList();
+      renderInventory();
+      queueFloatNotice('⚡ 高速配送！箱を2個即時入手！', 'delivery-success');
+    }
+
+    function spawnBoxFromInventory(chainKey) {
+      if (!state.inventory[chainKey] || state.inventory[chainKey] <= 0) return;
+
+      const emptyIndices = state.board
+        .map((val, idx) => (val === null && state.unlockedCells.includes(idx)) ? idx : null)
+        .filter(idx => idx !== null);
+
+      if (emptyIndices.length === 0) {
+        showAlert("盤面がいっぱいです！スペースを空けてください。");
+        return;
+      }
+
+      const randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      const randomCount = Math.floor(Math.random() * 7) + 4;
+
+      state.board[randomIdx] = { type: 'box', chain: chainKey, count: randomCount, justMerged: true };
+      state.inventory[chainKey]--;
+
+      saveState();
+      render();
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      for (let i = 0; i < MAX_ROWS * MAX_COLS; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        if (!state.unlockedCells.includes(i)) {
+          cell.classList.add('locked');
+          const reqLvl = getCellRequiredLevel(i);
+          cell.innerHTML = `
+            <div class="lock-icon">🔒</div>
+            <div class="unlock-lvl">Lv.${reqLvl}</div>
+          `;
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderItems() {
+      document.querySelectorAll('.item-node').forEach(el => el.remove());
+      const boardContainer = document.getElementById('board-container');
+
+      state.board.forEach((item, idx) => {
+        if (!item) return;
+
+        const el = document.createElement('div');
+        el.className = 'item-node';
+        el.dataset.idx = idx;
+
+        const pos = getCellPosition(idx);
+        el.style.left = pos.x + 'px';
+        el.style.top = pos.y + 'px';
+
+        if (item.type === 'box') {
+          el.classList.add('box', item.chain);
+          const icon = CHAINS[item.chain].icon;
+          el.innerHTML = `<span>${icon}</span><span class="box-count">${item.count}</span>`;
+        } else {
+          const icon = CHAINS[item.chain].branches[item.branch].items[item.level];
+          el.innerHTML = `<span>${icon}</span>`;
+        }
+
+        if (item.justMerged) {
+          el.classList.add('merged');
+          delete item.justMerged;
+        }
+
+        boardContainer.appendChild(el);
+      });
+    }
+
+    function getCellPosition(idx) {
+      const r = Math.floor(idx / MAX_COLS);
+      const c = idx % MAX_COLS;
+      const boardPadding = 5;
+      return {
+        x: boardPadding + c * (CELL_SIZE + GAP),
+        y: boardPadding + r * (CELL_SIZE + GAP)
+      };
+    }
+
+    function sortCustomers() {
+      state.customers.sort((a, b) => {
+        const aReady = checkCustomerReady(a);
+        const bReady = checkCustomerReady(b);
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
+        return 0;
+      });
+    }
+
+    function renderCustomers() {
+      const list = document.getElementById('customer-list');
+      list.innerHTML = '';
+
+      state.customers.forEach(cust => {
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        card.dataset.id = cust.id;
+
+        const isReady = checkCustomerReady(cust);
+        if (isReady) card.classList.add('ready');
+
+        let itemsHtml = cust.orders.map((ord) => {
+          const isFulfilled = ord.fulfilled;
+          const icon = CHAINS[ord.chain].branches[ord.branch].items[ord.level];
+          
+          return `
+            <div class="order-item-slot ${isFulfilled ? 'fulfilled' : ''}" data-chain="${ord.chain}">
+              ${icon}
+            </div>
+          `;
+        }).join('');
+
+        card.innerHTML = `
+          <div class="status-indicator ${isReady ? 'is-ready' : 'not-ready'}">${isReady ? '✔️' : '-'}</div>
+          <div class="customer-header">
+            <div class="customer-avatar">${cust.avatar}</div>
+            <div class="customer-name">${cust.name}</div>
+          </div>
+          <div class="order-body">
+            <div class="order-items-group">${itemsHtml}</div>
+          </div>
+        `;
+
+        card.onclick = () => {
+          if (isReady) serveCustomer(cust.id);
+        };
+
+        list.appendChild(card);
+      });
+    }
+
+    function checkCustomerReady(cust) {
+      const boardItems = state.board
+        .map((b, idx) => ({ ...b, idx }))
+        .filter(b => b && b.type === 'item');
+
+      const usedIndices = new Set();
+      let allFulfilled = true;
+
+      for (const ord of cust.orders) {
+        const match = boardItems.find(b => 
+          !usedIndices.has(b.idx) && 
+          b.chain === ord.chain && 
+          b.branch === ord.branch &&
+          b.level === ord.level
+        );
+        if (match) {
+          usedIndices.add(match.idx);
+          ord.fulfilled = true;
+        } else {
+          ord.fulfilled = false;
+          allFulfilled = false;
+        }
+      }
+      return allFulfilled;
+    }
+
+    function spawnCustomer() {
+      if (state.customers.length >= 4) return;
+
+      const id = 'cust_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+      const avatar = CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)];
+      const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
+
+      const availableChains = Object.keys(CHAINS).filter(k => CHAINS[k].levelReq <= state.level);
+      
+      let numOrders = 1;
+      const isAccessoryUnlocked = state.level >= CHAINS.accessory.levelReq;
+
+      if (isAccessoryUnlocked) {
+        const rand = Math.random();
+        if (rand < 0.15) numOrders = 3;
+        else if (rand < 0.50) numOrders = 2;
+        else numOrders = 1;
+      } else {
+        numOrders = Math.random() < 0.3 ? 2 : 1;
+      }
+
+      const orders = [];
+      const guaranteedHighLevelSlot = Math.floor(Math.random() * numOrders);
+
+      for (let i = 0; i < numOrders; i++) {
+        const chain = availableChains[Math.floor(Math.random() * availableChains.length)];
+        const branch = Math.random() < 0.5 ? 'A' : 'B';
+        const maxLvl = Math.min(state.level, 5);
+        
+        let level = 0;
+        if (i === guaranteedHighLevelSlot || (numOrders === 1 && Math.random() < 0.7)) {
+          level = Math.floor(Math.random() * Math.max(1, maxLvl)) + 1; 
+          level = Math.min(level, 5);
+        } else {
+          level = Math.floor(Math.random() * Math.max(1, maxLvl));
+        }
+
+        orders.push({ chain, branch, level, fulfilled: false });
+      }
+
+      state.customers.push({ id, avatar, name, orders });
+    }
+
+    function serveCustomer(id) {
+      const custIdx = state.customers.findIndex(c => c.id === id);
+      if (custIdx === -1) return;
+      const cust = state.customers[custIdx];
+
+      playSound('serve');
+
+      let rewardCoins = 0;
+      let rewardXp = 0;
+      const indicesToConsume = [];
+      const usedIndices = new Set();
+
+      cust.orders.forEach(ord => {
+        const boardIdx = state.board.findIndex((b, idx) => 
+          !usedIndices.has(idx) && 
+          b && b.type === 'item' && 
+          b.chain === ord.chain && 
+          b.branch === ord.branch &&
+          b.level === ord.level
+        );
+        if (boardIdx !== -1) {
+          usedIndices.add(boardIdx);
+          indicesToConsume.push(boardIdx);
+          rewardCoins += (ord.level + 1) * 20;
+          rewardXp += (ord.level + 1) * 15;
+        }
+      });
+
+      const boardEls = document.querySelectorAll('.item-node');
+      indicesToConsume.forEach(bIdx => {
+        boardEls.forEach(el => {
+          if (parseInt(el.dataset.idx) === bIdx) {
+            el.classList.add('consume-out');
+          }
+        });
+      });
+
+      const cardEl = document.querySelector(`.order-card[data-id="${id}"]`);
+      if (cardEl) {
+        const randomMsg = THANKS_MESSAGES[Math.floor(Math.random() * THANKS_MESSAGES.length)];
+        const thanksBubble = document.createElement('div');
+        thanksBubble.className = 'thanks-bubble';
+        thanksBubble.innerText = randomMsg;
+        cardEl.appendChild(thanksBubble);
+      }
+
+      setTimeout(() => {
+        indicesToConsume.forEach(bIdx => {
+          state.board[bIdx] = null;
+        });
+
+        addCoins(rewardCoins);
+        addXp(rewardXp);
+
+        state.stats.servedCustomers = (state.stats.servedCustomers || 0) + 1;
+        checkTitlesUnlock();
+
+        state.customers.splice(custIdx, 1);
+        while (state.customers.length < 4) spawnCustomer();
+
+        sortCustomers();
+        saveState();
+        render();
+      }, 400);
+    }
+
+    function addXp(amount) {
+      state.xp += amount;
+      if (state.xp >= state.nextXp) {
+        state.xp -= state.nextXp;
+        state.level++;
+        state.nextXp = Math.floor(state.nextXp * 1.5);
+
+        checkCellUnlocks();
+        checkTitlesUnlock();
+        triggerConfetti();
+        showModal("🎉 LEVEL UP!", `レベル ${state.level} にアップしました！\n新しい盤面マスや要素が解放されました！`);
+      }
+    }
+
+    function addCoins(amount) {
+      state.coins += amount;
+      if (!state.stats.maxCoins || state.coins > state.stats.maxCoins) {
+        state.stats.maxCoins = state.coins;
+      }
+      checkTitlesUnlock();
+
+      const badge = document.getElementById('coin-badge');
+      badge.classList.add('bump');
+      setTimeout(() => badge.classList.remove('bump'), 200);
+    }
+
+    let longPressTimer = null;
+    let isLongPressed = false;
+
+    function setupLongPress(element, callback) {
+      const start = () => {
+        isLongPressed = false;
+        longPressTimer = setTimeout(() => {
+          isLongPressed = true;
+          callback();
+        }, 500);
+      };
+      const clear = () => {
+        if (longPressTimer) clearTimeout(longPressTimer);
+      };
+
+      element.addEventListener('pointerdown', start);
+      element.addEventListener('pointerup', clear);
+      element.addEventListener('pointermove', clear);
+      element.addEventListener('pointercancel', clear);
+    }
+
+    function setupGlobalInput() {
+      const container = document.getElementById('board-container');
+      let dragEl = null;
+      let startIdx = null;
+      let startX = 0, startY = 0;
+      let isDragging = false;
+
+      const getPos = e => e.touches ? e.touches[0] : e;
+
+      container.addEventListener('pointerdown', e => {
+        const node = e.target.closest('.item-node');
+        if (!node) return;
+
+        startIdx = parseInt(node.dataset.idx);
+        if (isNaN(startIdx) || !state.board[startIdx]) return;
+
+        dragEl = node;
+        const p = getPos(e);
+        startX = p.clientX;
+        startY = p.clientY;
+        isDragging = false;
+        isLongPressed = false;
+
+        longPressTimer = setTimeout(() => {
+          isLongPressed = true;
+          if (!isDragging && state.board[startIdx]) {
+            showRecipeModal(state.board[startIdx].chain);
+          }
+        }, 500);
+      });
+
+      window.addEventListener('pointermove', e => {
+        if (!dragEl) return;
+        const p = getPos(e);
+        const dx = p.clientX - startX;
+        const dy = p.clientY - startY;
+
+        if (!isDragging && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+          isDragging = true;
+          if (longPressTimer) clearTimeout(longPressTimer);
+          dragEl.classList.add('dragging');
+        }
+
+        if (isDragging) {
+          const startPos = getCellPosition(startIdx);
+          dragEl.style.left = (startPos.x + dx) + 'px';
+          dragEl.style.top = (startPos.y + dy) + 'px';
+        }
+      });
+
+      window.addEventListener('pointerup', e => {
+        if (longPressTimer) clearTimeout(longPressTimer);
+        if (!dragEl) return;
+
+        const targetIdx = startIdx;
+        const item = state.board[targetIdx];
+
+        if (!isDragging && !isLongPressed) {
+          if (item && item.type === 'box') {
+            tapBox(targetIdx);
+          }
+        } else if (isDragging) {
+          dragEl.classList.remove('dragging');
+          
+          const trashRect = document.getElementById('trash-bar').getBoundingClientRect();
+          const p = getPos(e.changedTouches ? e.changedTouches[0] : e);
+          
+          if (p.clientX >= trashRect.left && p.clientX <= trashRect.right &&
+              p.clientY >= trashRect.top && p.clientY <= trashRect.bottom) {
+            state.board[targetIdx] = null;
+            saveState();
+            render();
+          } else {
+            const gridRect = document.getElementById('grid').getBoundingClientRect();
+            const relX = p.clientX - gridRect.left;
+            const relY = p.clientY - gridRect.top;
+
+            const col = Math.floor(relX / (CELL_SIZE + GAP));
+            const row = Math.floor(relY / (CELL_SIZE + GAP));
+
+            if (row >= 0 && row < MAX_ROWS && col >= 0 && col < MAX_COLS) {
+              const destIdx = row * MAX_COLS + col;
+              if (state.unlockedCells.includes(destIdx)) {
+                handleDrop(targetIdx, destIdx);
+              } else {
+                renderItems();
+              }
+            } else {
+              renderItems();
+            }
+          }
+        }
+
+        dragEl = null;
+        startIdx = null;
+        isDragging = false;
+      });
+    }
+
+    function tapBox(idx) {
+      const box = state.board[idx];
+      if (!box || box.type !== 'box') return;
+
+      const emptyIdx = state.board.findIndex((val, i) => val === null && state.unlockedCells.includes(i));
+      if (emptyIdx === -1) {
+        showAlert("盤面がいっぱいです！スペースを空けてください。");
+        return;
+      }
+
+      playSound('pop');
+
+      const chosenBranch = Math.random() < 0.5 ? 'A' : 'B';
+      const rand = Math.random() * 100;
+      let dropLevel = 0; 
+      let floatText = null;
+
+      if (rand < 2) {
+        dropLevel = 2;
+        floatText = "すばらしい！";
+      } else if (rand < 7) {
+        dropLevel = 1;
+        floatText = "すごい！";
+      }
+
+      state.board[emptyIdx] = {
+        type: 'item',
+        chain: box.chain,
+        branch: chosenBranch,
+        level: dropLevel,
+        justMerged: true
+      };
+
+      markItemAsDiscovered(box.chain, chosenBranch, dropLevel);
+
+      if (floatText) {
+        queueFloatNotice(floatText, dropLevel === 2 ? 'lvl3' : 'lvl2');
+      }
+
+      box.count--;
+      if (box.count <= 0) {
+        state.board[idx] = null;
+      }
+
+      sortCustomers();
+      saveState();
+      render();
+    }
+
+    function handleDrop(fromIdx, toIdx) {
+      if (fromIdx === toIdx) {
+        renderItems();
+        return;
+      }
+
+      const src = state.board[fromIdx];
+      const dest = state.board[toIdx];
+
+      if (!dest) {
+        state.board[toIdx] = src;
+        state.board[fromIdx] = null;
+      } else if (
+        src.type === 'item' && dest.type === 'item' &&
+        src.chain === dest.chain &&
+        src.branch === dest.branch &&
+        src.level === dest.level
+      ) {
+        const maxLvl = CHAINS[src.chain].branches[src.branch].items.length - 1;
+        if (src.level < maxLvl) {
+          playSound('merge');
+          const nextLvl = src.level + 1;
+          state.board[toIdx] = {
+            type: 'item',
+            chain: src.chain,
+            branch: src.branch,
+            level: nextLvl,
+            justMerged: true
+          };
+          state.board[fromIdx] = null;
+
+          markItemAsDiscovered(src.chain, src.branch, nextLvl);
+          createSparkles(toIdx);
+          addXp((src.level + 1) * 5);
+        } else {
+          swapItems(fromIdx, toIdx);
+        }
+      } else {
+        swapItems(fromIdx, toIdx);
+      }
+
+      sortCustomers();
+      saveState();
+      render();
+    }
+
+    function swapItems(fromIdx, toIdx) {
+      const temp = state.board[fromIdx];
+      state.board[fromIdx] = state.board[toIdx];
+      state.board[toIdx] = temp;
+    }
+
+    function createSparkles(idx) {
+      const pos = getCellPosition(idx);
+      const container = document.getElementById('board-container');
+      const sparkles = ['✨', '⭐', '🌟', '💖'];
+
+      for (let i = 0; i < 6; i++) {
+        const sp = document.createElement('div');
+        sp.className = 'sparkle-effect';
+        sp.innerText = sparkles[Math.floor(Math.random() * sparkles.length)];
+        sp.style.left = (pos.x + 10) + 'px';
+        sp.style.top = (pos.y + 10) + 'px';
+
+        const dx = (Math.random() - 0.5) * 60;
+        const dy = (Math.random() - 0.5) * 60;
+        sp.style.setProperty('--dx', dx + 'px');
+        sp.style.setProperty('--dy', dy + 'px');
+
+        container.appendChild(sp);
+        setTimeout(() => sp.remove(), 500);
+      }
+    }
+
+    function openTitleModal() {
+      const container = document.getElementById('title-list-container');
+      const infoDisplay = document.getElementById('title-info-display');
+      container.innerHTML = '';
+      infoDisplay.innerText = '称号をタップまたは長押しすると詳細が表示されます';
+
+      TITLES_MASTER.forEach(title => {
+        const isUnlocked = state.unlockedTitles.includes(title.id);
+        const item = document.createElement('div');
+        
+        item.className = `title-grid-item title-star${title.stars} ${!isUnlocked ? 'locked-title' : ''}`;
+        const displayIcon = isUnlocked ? (title.icon || '👑') : '？';
+        item.innerHTML = `<span>${displayIcon}</span>`;
+
+        const starsStr = '★'.repeat(title.stars) + '☆'.repeat(5 - title.stars);
+        // 未獲得時は条件を「？？？？？」にし、レア度は表示する仕様
+        const descText = isUnlocked ?
+          `【${title.name}】 レア度: ${starsStr} / 条件: ${title.desc}` :
+          `【未獲得】 レア度: ${starsStr} / 条件: ？？？？？`;
+
+        const updateInfo = () => {
+          infoDisplay.innerText = descText;
+        };
+
+        item.addEventListener('click', updateInfo);
+        item.addEventListener('pointerdown', updateInfo);
+
+        container.appendChild(item);
+      });
+
+      document.getElementById('title-modal').style.display = 'flex';
+    }
+
+    function showRecipeModal(chainKey) {
+      const chain = CHAINS[chainKey];
+      if (!chain) return;
+
+      document.getElementById('recipe-modal-title').innerText = `${chain.icon} ${chain.name} の進化レシピ`;
+      
+      let html = `<div class="recipe-container">`;
+      
+      ['A', 'B'].forEach(bKey => {
+        const branch = chain.branches[bKey];
+        html += `<div class="recipe-branch-title">${bKey}系統: ${branch.name}</div>`;
+        html += `<div class="recipe-chain-row">`;
+        branch.items.forEach((item, idx) => {
+          const isDiscovered = !!state.discoveredItems[`${chainKey}_${bKey}_${idx}`];
+          const displayIcon = isDiscovered ? item : '❓';
+          
+          html += `
+            <div class="recipe-icon-box ${!isDiscovered ? 'locked-item' : ''}">
+              <span>${displayIcon}</span>
+              <span class="recipe-level-lbl">Lv.${idx+1}</span>
+            </div>
+            ${idx < branch.items.length - 1 ? '<span style="font-size:8px; color:#bcaaa4;">➔</span>' : ''}
+          `;
+        });
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+
+      document.getElementById('recipe-modal-body').innerHTML = html;
+      document.getElementById('recipe-modal').style.display = 'flex';
+    }
+
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#00bcd4', '#4caf50', '#ffeb3b', '#ff9800'];
+
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.7) * 14,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rspeed: (Math.random() - 0.5) * 10
+        });
+      }
+
+      let frame = 0;
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3;
+          p.rotation += p.rspeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+
+        frame++;
+        if (frame < 120) {
+          requestAnimationFrame(animate);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      animate();
+    }
+
+    function showModal(title, msg) {
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-msg').innerText = msg;
+      document.getElementById('congrat-modal').style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function saveState() {
+      localStorage.setItem('merge_cafe_state_v9', JSON.stringify(state));
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem('merge_cafe_state_v9');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          state = { ...state, ...parsed };
+          if (!state.discoveredItems) state.discoveredItems = {};
+          if (!state.unlockedTitles) state.unlockedTitles = {};
+          if (!state.stats) {
+            state.stats = { servedCustomers: 0, expressCount: 0, maxCoins: state.coins || 100 };
+          }
+        } catch(e) {}
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
